@@ -15,7 +15,7 @@ poetry run pip install magic-pdf[full] --extra-index-url  https://wheels.myhloli
 
 ## Run server
 ```shell
-python server.py
+uvicorn server:app --host 0.0.0.0 --reload
 ```
 
 ## Use client
