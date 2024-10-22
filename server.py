@@ -1,25 +1,21 @@
 import asyncio
-from datetime import timedelta
-
-import fitz
-import xoscar as xo
-
-import re
-
-from loguru import logger
-from fastapi import FastAPI, WebSocket
+import os
 from contextlib import asynccontextmanager
 
-from magic_pdf.pipe.UNIPipe import UNIPipe
+import fitz
 import magic_pdf.model as model_config
-
+import xoscar as xo
+from fastapi import FastAPI, WebSocket
+from loguru import logger
+from magic_pdf.pipe.UNIPipe import UNIPipe
+from magic_pdf.rw.DiskReaderWriter import DiskReaderWriter
 from magic_pdf.rw.S3ReaderWriter import S3ReaderWriter
 from starlette.websockets import WebSocketDisconnect
 
-from settings import settings, minio_client
+from settings import StorageType, settings
 
 model_config.__use_inside_model__ = True
-pattern = r'!\[\]\(\/([^\s/]+\.\w+)\)'
+pattern = r"!\[\]\(\/([^\s/]+\.\w+)\)"
 
 ACTORS = []
 
@@ -52,30 +48,32 @@ class PDFOscarActor(xo.Actor):
         self._available = True
 
     @classmethod
-    async def convert_pdf_to_md(cls, pdf_bytes):
-
-        jso_useful_key = {"_pdf_type": "", "model_list": []}
-
-        image_dir = f's3://{settings.MINIO_BUCKET}/'
-        s3image_cli = S3ReaderWriter(
+    def get_image_writer(cls):
+        if settings.STORAGE == StorageType.LOCAL:
+            return DiskReaderWriter(settings.IMAGE_DIR)
+        return S3ReaderWriter(
             settings.MINIO_ACCESS_KEY,
             settings.MINIO_SECRET_KEY,
             settings.minio_endpoint_url,
-            parent_path=image_dir
+            parent_path=f"s3://{settings.MINIO_BUCKET}/",
         )
 
-        pipe = UNIPipe(pdf_bytes, jso_useful_key, s3image_cli)
+    @classmethod
+    def _get_img_parent_path(cls):
+        if settings.STORAGE == StorageType.LOCAL:
+            return str(os.path.basename(settings.IMAGE_DIR))
+        return f"{settings.MINIO_ENDPOINT}"
+
+    @classmethod
+    async def convert_pdf_to_md(cls, pdf_bytes):
+        jso_useful_key = {"_pdf_type": "", "model_list": []}
+        image_writer = cls.get_image_writer()
+        pipe = UNIPipe(pdf_bytes, jso_useful_key, image_writer)
         pipe.pipe_classify()
         pipe.pipe_analyze()
         pipe.pipe_parse()
-        md_content: str = pipe.pipe_mk_markdown("", drop_mode="none")
-
-        # generate preview url
-        matches = re.findall(pattern, md_content)
-        for filename in matches:
-            signed_url = minio_client.presigned_get_object(settings.MINIO_BUCKET, filename, expires=timedelta(days=1780))
-            logger.info("SIGNED URL: {}", signed_url)
-            md_content = md_content.replace(filename, signed_url)
+        img_parent_path = cls._get_img_parent_path()
+        md_content: str = pipe.pipe_mk_markdown(img_parent_path, drop_mode="none")
 
         return md_content
 
