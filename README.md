@@ -23,7 +23,7 @@ Please refer the [client.py](client.py) for how to send pdf files to the server.
 
 ## Todo
 - [ ] Use docker to deploy
-- [ ] LocalImageWriter
+- [x] LocalImageWriter
 - [ ] Interactive web page
 
 ## License

@@ -6,6 +6,8 @@ import fitz
 import magic_pdf.model as model_config
 import xoscar as xo
 from fastapi import FastAPI, WebSocket
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from magic_pdf.pipe.UNIPipe import UNIPipe
 from magic_pdf.rw.DiskReaderWriter import DiskReaderWriter
@@ -48,7 +50,7 @@ class PDFOscarActor(xo.Actor):
 
     @classmethod
     def get_image_writer(cls):
-        if settings.STORAGE == StorageType.LOCAL:
+        if settings.STORAGE_TYPE == StorageType.LOCAL:
             return DiskReaderWriter(settings.IMAGE_DIR)
         return S3ReaderWriter(
             settings.MINIO_ACCESS_KEY,
@@ -59,9 +61,9 @@ class PDFOscarActor(xo.Actor):
 
     @classmethod
     def _get_img_parent_path(cls):
-        if settings.STORAGE == StorageType.LOCAL:
-            return str(os.path.basename(settings.IMAGE_DIR))
-        return f"{settings.MINIO_ENDPOINT}"
+        if settings.STORAGE_TYPE == StorageType.LOCAL:
+            return f"{settings.SERVER_URL}/images"
+        return f"{settings.minio_endpoint_url}/{settings.MINIO_BUCKET}"
 
     @classmethod
     async def convert_pdf_to_md(cls, pdf_bytes):
@@ -102,6 +104,11 @@ class PDFOscarActor(xo.Actor):
         self._available = True
 
 
+@app.get("/")
+async def get_index():
+    return FileResponse("web/index.html")
+
+
 @app.websocket("/ws")
 async def stage(websocket: WebSocket):
     await websocket.accept()
@@ -111,3 +118,7 @@ async def stage(websocket: WebSocket):
                 await actor.serve(websocket)
                 return
         await asyncio.sleep(1)
+
+
+os.makedirs(settings.IMAGE_DIR, exist_ok=True)
+app.mount("/images", StaticFiles(directory=settings.IMAGE_DIR), name="images")

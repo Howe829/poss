@@ -1,8 +1,12 @@
+import sys
 from enum import Enum
 
+from loguru import logger
 from minio import Minio
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+logger.add(sys.stdout, format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
 
 
 class StorageType(str, Enum):
@@ -11,16 +15,15 @@ class StorageType(str, Enum):
 
 
 class Settings(BaseSettings):
-    IMAGE_DIR: str = Field(default="images")
+    IMAGE_DIR: str = Field(default="images", description="Local image dir")
     MINIO_ACCESS_KEY: str
     MINIO_BUCKET: str
     MINIO_SECRET_KEY: str
     MINIO_ENDPOINT: str
-    MINIO_SECURE: bool = Field(default=True)
-    SERVER_PORT: int
-    SERVER_IP: str
-    STORAGE: str = Field(default="local")
-    XOSCAR_ACTORS: int = Field(default=4)
+    MINIO_SECURE: bool = Field(default=False, description="Set to True if your minio endpoint supports https")
+    SERVER_URL: str = Field(description="The url that point to this server, it will be used for images' url prefix")
+    STORAGE_TYPE: str = Field(default="local")
+    XOSCAR_ACTORS: int = Field(default=4, description="How many processes should xoscar spawn")
     XOSCAR_ADDRESS: str = Field(default="localhost:7777")
 
     class Config:
