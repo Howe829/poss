@@ -15,7 +15,6 @@ from starlette.websockets import WebSocketDisconnect
 from settings import StorageType, settings
 
 model_config.__use_inside_model__ = True
-pattern = r"!\[\]\(\/([^\s/]+\.\w+)\)"
 
 ACTORS = []
 
