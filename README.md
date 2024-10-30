@@ -24,7 +24,8 @@ Please refer the [client.py](client.py) for how to send pdf files to the server.
 ## Todo
 - [ ] Use docker to deploy
 - [x] LocalImageWriter
-- [ ] Interactive web page
+- [x] Interactive web page
+- [ ] Window ocr and chunking
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
